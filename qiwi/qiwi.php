@@ -27,8 +27,8 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
 
     $this -> title = $this -> settings['title'];
     $this -> description = $this -> settings['description'];
-    $this -> payment_password = $this -> settings['payment_password'];
-    $this -> apiId = $this -> settings['apiId'];
+    $this -> shop_id = $this -> settings['shop_id'];
+    $this -> api_id = $this -> settings['api_id'];
 
     $this -> msg['message'] = "";
     $this -> msg['class'] = "";
@@ -58,14 +58,14 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
             'type' => 'textarea',
             'description' => __('Описание, которое пользователь видит во время оплаты','visa_qiwi'),
             'default' => __('Оплата через систему Visa QIWI Wallet','visa_qiwi')),
-        'payment_password' => array(
-            'title' => 'Payment password',
+        'shop_id' => array(
+            'title' => 'Shop ID',
             'type' => 'text',
-            'description' => __( 'Платёжный пароль, выданный при регистрации/генерации аутентификационных данных', 'visa_qiwi' ) ),
-        'apiId' => array(
+            'description' => __( 'Идентификатор магазина (раздел "Протоколы/данные магазина")', 'visa_qiwi' ) ),
+        'api_id' => array(
             'title' => 'API ID',
             'type' => 'text',
-            'description' => __('Идентификатор пользователя/магазина (раздел "Протоколы/данные магазина")' , 'visa_qiwi' ) )
+            'description' => __('Генерируемый идентификатор пользователя(API ID) (раздел "Протоколы/данные магазина")' , 'visa_qiwi' ) )
     );
   }
 
@@ -73,7 +73,7 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
       echo '<h3>'.__('Оплата Visa QIWI Wallet','visa_qiwi').'</h3>';
       echo '<h5>'.__( 'Для подключения системы Visa QIWI Wallet нужно зарегистрировать магазин ','visa_qiwi' );
       echo '<a href="https://ishop.qiwi.com/">https://ishop.qiwi.com/</a>';
-      echo __( '. После этого Вы сможете сгенерировать API ID и платёжный пароль','visa_qiwi' ).'</h5>';
+      echo __( '. <br>После этого Вы сможете сгенерировать API ID и получить идентификатор магазина.','visa_qiwi' ).'</h5>';
       echo '<table class="form-table">';
       // Generate the HTML For the settings form.
       $this -> generate_settings_html();
@@ -100,23 +100,18 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
 
       global $woocommerce;
 
-      $qiwi_host = "http://ishop.qiwi.ru/xml";
+      $qiwi_host = "https://w.qiwi.com/order/external/create.action";
 
       $order = new WC_Order($order_id);
       $txnid = $order_id;
       //  update_post_meta(12345,'test_key',$order);
       $result ='';
       $result .= '<form name=ShopForm method="POST" id="submit_visa_qiwi_payment_form" action="'.$qiwi_host.'">'; 
-      $result .= '<input type="hidden" name="scid" value="'.$this->scid.'">';
-      $result .= '<input type="hidden" name="ShopID" value="'.$this->ShopID.'"> ';
-      $result .= '<input type=hidden name="CustomerNumber" value="'.$txnid.'" size="43">';
-      $result .= '<input type=hidden name="Sum" value="'.$order->order_total.'" size="43">'; 
-      $result .= '<input type=hidden name="CustName" value="'.$order->billing_first_name.' '.$order->billing_last_name.'" size="43">';
-      $result .= '<input type=hidden name="CustAddr" value="'.$order->billing_city.', '.$order->billing_address_1.'" size="43">';
-      $result .= '<input type=hidden name="CustEMail" value="'.$order->billing_email.'" size="43">'; 
-      $result .= '<input type=hidden name="cms_name" value="wordpress_woocommerce" size="43">'; 
-      $result .= '<textarea style="display:none" rows="10" name="OrderDetails"  cols="34">'.$order->customer_note.'</textarea>';
-      $result .= '<input name="paymentType" value="" type="hidden">';
+      $result .= '<input type="hidden" name="from" value="'.$this->shop_id.'">';
+      $result .= '<input type=hidden name="summ" value="'.$order->order_total.'" size="43">';
+      $result .= '<input type=hidden name="currency" value="RUB">';
+      $result .= '<input type=hidden name="to" value="79182428504">';
+
       $result .= '<input type=submit value="Оплатить">';
       $result .='<script type="text/javascript">';
       $result .='jQuery(function(){
@@ -184,7 +179,7 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
 }
  /**
    * Add the Gateway to WooCommerce
-   **/
+  **/
   function woocommerce_add_qiwi_gateway($methods) {
       $methods[] = 'WC_Payment_Qiwi';
       return $methods;

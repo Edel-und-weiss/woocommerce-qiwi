@@ -1,4 +1,4 @@
 woocommerce-qiwi-plugin
 =======================
 
-QIWI payment gateway plugin for WordPress
+QIWI payment gateway plugin for the WooCommerce [WordPress]
