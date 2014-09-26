@@ -1,4 +1,7 @@
 woocommerce-qiwi-plugin
 =======================
 
-QIWI payment gateway plugin for the WooCommerce [WordPress]
+Плагин находится в стадии разработки.
+- [x] Выставление счёта пользователю
+- [ ] Проверка статуса счёта
+
