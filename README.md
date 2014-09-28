@@ -1,4 +1,4 @@
-woocommerce-qiwi-plugin
+woocommerce-qiwi
 =======================
 
 Плагин находится в стадии разработки.
