@@ -131,8 +131,7 @@ class WC_Payment_Qiwi extends WC_Payment_Gateway {
 	public function qiwi_expose_account( $order_id ) {
 
 		global $woocommerce;
-		global $shop_psw;
-		$shop_psw = $this -> shop_password;
+		add_option("shop_password", $this -> shop_password, '', 'yes');
 
 		$data = array();
 

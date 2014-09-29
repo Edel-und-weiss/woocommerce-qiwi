@@ -2,7 +2,7 @@
 /*
 Plugin Name: Visa QIWI Wallet for the WooCommerce
 Plugin URI: https://github.com/Edel-und-weiss/woocommerce-qiwi-plugin
-Version: 0.0.1
+Version: 0.0.3
 Author: Denis Bezik
 Author URI: denis.bezik@gmail.com
 Description: QIWI payment gateway for WooCommerce
@@ -15,6 +15,18 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+if (!function_exists('apache_request_headers')) {
+    function apache_request_headers() {
+        foreach($_SERVER as $key=>$value) {
+            if (substr($key,0,5)=="HTTP_") {
+                $key=str_replace(" ","-",ucwords(strtolower(str_replace("_"," ",substr($key,5)))));
+                $out[$key]=$value;
+            }
+        }
+        return $out;
+    }
+}
+
 include_once 'qiwi/qiwi.php';
 
 /**
@@ -22,42 +34,67 @@ include_once 'qiwi/qiwi.php';
  **/
 if ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
 
-	add_action( 'parse_request', 'qiwi_check_payment' );
-	function qiwi_check_payment()
+	add_action( 'parse_request', 'recieve_qiwi_notification' );
+	function recieve_qiwi_notification()
 	{
-		global $wpdb;
-		if ($_REQUEST['qiwi'] == 'check') {
-			$hash = md5($_POST['action'].';'.$_POST['orderSumAmount'].';'.$_POST['orderSumCurrencyPaycash'].';'.
-						$_POST['orderSumBankPaycash'].';'.$_POST['shopId'].';'.$_POST['invoiceId'].';'.
-						$_POST['customerNumber'].';'.$shop_psw);
-			if (strtolower($hash) != strtolower($_POST['md5'])) {
-				$code = 1;
-			} else {
-				$order = $wpdb->get_row('SELECT * FROM '.$wpdb->prefix.'posts WHERE ID = '.(int)$_POST['customerNumber']);
-				$order_summ = get_post_meta($order->ID,'_order_total',true);
-				if (!$order) {
-					$code = 200;
-				} elseif ($order_summ != $_POST['orderSumAmount']) {
-					$code = 100;
-				} else {
-					$code = 0;
-					if ($_POST['action'] == 'paymentAviso') {
-						$order_w = new WC_Order( $order->ID );
-						$order_w->update_status('processing', __( 'Awaiting BACS payment', 'woocommerce' ));
-						$order_w->reduce_order_stock();
-						
-						$code = 0;
+		if ($_REQUEST['qiwi_recieve'] == 'true') {
+
+			$headers = apache_request_headers();
+			$params_string = $_POST['amount'] .'|'. $_POST['bill_id'] .'|'. $_POST['ccy'] .'|'. $_POST['command'] .'|'.
+							 $_POST['error'] .'|'. $_POST['prv_name'] .'|'. $_POST['status'] .'|'. $_POST['user'];
+			$control_sign = base64_encode( hash_hmac ('sha1', $params_string , get_option('shop_password'), true ) );
+			$woo_order = new WC_Order( $order->id );
+
+			if ( $control_sign == $headers['X-Api-Signature'] ) {
+				if ( $_POST['error'] == 0 ) {
+					if ( $_POST['status'] == 'paid' ) {
+
+						$woo_order->payment_complete();
+						$woo_order->add_order_note( __('Оплата заказа №' . $woo_order->id . ' выполнена. Клиент: ' . $_POST['user'], 'woocommerce') );
+
 						header('Content-Type: application/xml');
-						include('payment_xml.php');
+						$code = 0;
+						include('result_xml.php');
+						die();
+					} elseif ( $_POST['status'] == 'rejected' ) {
+						$woo_order->update_status('failed', __('Счет отклонен клиентом.', 'woocommerce'));
+						header('Content-Type: application/xml');
+						$code = $_POST['error'];
+						include('result_xml.php');
+						die();
+					} elseif ( $_POST['status'] == 'unpaid' ) {
+						$woo_order->update_status('failed', __('Ошибка при проведении оплаты. Счет не оплачен.', 'woocommerce'));
+						header('Content-Type: application/xml');
+						$code = $_POST['error'];
+						include('result_xml.php');
+						die();						
+					} elseif ( $_POST['status'] == 'expired' ) {
+						$woo_order->update_status('failed', __('Время жизни счета истекло. Счет не оплачен.', 'woocommerce'));
+						header('Content-Type: application/xml');
+						$code = $_POST['error'];
+						include('result_xml.php');
 						die();
 					} else {
+						$woo_order->add_order_note( __('Оплата заказа №' . $woo_order->id . ' не выполнена. Неизвестный статус заказа.', 'woocommerce') );
 						header('Content-Type: application/xml');
-						include('check_xml.php');
+						$code = $_POST['error'];
+						include('result_xml.php');
 						die();
 					}
+				} else {
+					// техническая ошибка
+					header('Content-Type: application/xml');
+					$code = 300;
+					include('result_xml.php');
+					exit();
 				}
-			}
-			
+			} elseif ( ( strpos($_SERVER['REMOTE_ADDR'], "91.232.230.") == false ) || ( strpos($_SERVER['REMOTE_ADDR'], "79.142.16.") == false ) ) {
+				// ошибка авторизации
+				header('Content-Type: application/xml');
+				$code = 151;
+				include('result_xml.php');
+				die();
+			}			
 			die();
 			
 		}
