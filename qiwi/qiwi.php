@@ -226,6 +226,97 @@ function woocommerce_qiwi_init()
 			return '<div class="box ' . $this->msg['class'] . '-box">' . $this->msg['message'] . '</div>' . $content;
 		}
 	}
+<<<<<<< HEAD
+=======
+
+	/**
+	 * Exposing account
+	 **/
+	public function qiwi_expose_account( $order_id ) {
+
+		global $woocommerce;
+		add_option("shop_password", $this -> shop_password, '', 'yes');
+
+		$data = array();
+
+		$order = new WC_Order( $order_id );
+
+		$date_now = date(DATE_ISO8601);
+		$bill_id = $this -> order_prefix . "-" . $order_id;
+		$data = array(
+			"user" => "tel:+" . $order -> billing_phone,
+			"amount" => $order -> order_total,
+			"ccy" => $this -> currency,
+			"comment" => "Счёт для заказа №" . $bill_id,
+			"lifetime" => date(DATE_ISO8601, strtotime($date_now) + 24 * 3600 * $this -> lifetime),
+			"pay_source" => "qw",
+			"prv_name" => $this -> provider_name
+		);
+
+		$shop_id = $this -> shop_id;
+		$shop_password = $this -> shop_password;
+		$api_id = $this -> api_id;
+
+		$ch = curl_init('https://w.qiwi.com/api/v2/prv/' . $shop_id . '/bills/' . $bill_id);
+		curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, FALSE);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PUT');
+		curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($data));
+		curl_setopt($ch, CURLOPT_POST, 1);
+		curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+		curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_BASIC);
+		curl_setopt($ch, CURLOPT_USERPWD, $api_id . ":" . $shop_password);
+		curl_setopt($ch, CURLOPT_HTTPHEADER,array (
+		 "Accept: application/json"
+		));
+
+		$results = curl_exec ($ch) or die (curl_error($ch));
+		echo $results; 
+		echo curl_error($ch); 
+		curl_close ($ch);
+
+		$url = 'https://w.qiwi.com/order/external/main.action?shop=' . $shop_id . 
+		'&transaction=' . $bill_id . '&successUrl=' . $this -> success_url . 
+		'&failUrl=' . $this -> fail_url . '&qiwi_phone=' . $order -> billing_phone;
+		echo '<br><br><b><a href="'.$url.'">Ссылка переадресации для оплаты счета</a></b>';
+	}
+  
+  /**
+   * Process the payment and return the result
+   **/
+  function process_payment($order_id) {
+      $order = new WC_Order($order_id);
+    
+      return array('result' => 'success', 'redirect' => $order->get_checkout_payment_url( true ));
+  }
+
+  
+  function showMessage($content) {
+      return '<div class="box '.$this -> msg['class'].'-box">'.$this -> msg['message'].'</div>'.$content;
+  }
+
+   // get all pages
+  function get_pages($title = false, $indent = true) {
+      $wp_pages = get_pages('sort_column=menu_order');
+      $page_list = array();
+      if ($title) $page_list[] = $title;
+      foreach ($wp_pages as $page) {
+          $prefix = '';
+          // show indented child pages?
+          if ($indent) {
+              $has_parent = $page->post_parent;
+              while($has_parent) {
+                  $prefix .=  ' - ';
+                  $next_page = get_page($has_parent);
+                  $has_parent = $next_page->post_parent;
+              }
+          }
+          // add to page list array array
+          $page_list[$page->ID] = $prefix . $page->post_title;
+      }
+      return $page_list;
+  }
+}
+>>>>>>> fcfd7dece147f6d0b8342aa8f4635d50b1693e55
 	/**
 	 * Add the Gateway to WooCommerce
 	 **/
